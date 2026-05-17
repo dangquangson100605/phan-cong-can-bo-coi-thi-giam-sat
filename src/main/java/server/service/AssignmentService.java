@@ -35,8 +35,8 @@ public class AssignmentService {
                     " can bo cho " + m + " phong thi, hien chi co " + n + " can bo. Vui long nhap lai du lieu.");
         }
 
-        // Luu can bo va phong thi vao DB
-        dbManager.saveCanBoList(canBoList);
+        // Luu can bo va phong thi vao DB, lay lai danh sach voi id thuc te tu DB
+        List<CanBo> savedCanBo = dbManager.saveCanBoList(canBoList);
         List<PhongThi> savedPhongThi = dbManager.savePhongThiList(phongThiList);
 
         // Lay lich su phan cong tu DB
@@ -48,7 +48,7 @@ public class AssignmentService {
 
         // === THUAT TOAN PHAN CONG ===
         List<PhanCong> phanCongList = new ArrayList<>();
-        List<CanBo> available = new ArrayList<>(canBoList);
+        List<CanBo> available = new ArrayList<>(savedCanBo);
 
         // Buoc 1: Shuffle ngau nhien
         Collections.shuffle(available, new Random());
@@ -174,45 +174,126 @@ public class AssignmentService {
     }
 
     /**
-     * Phan cong giam sat hanh lang: chia deu phong thi cho cac can bo con lai
+     * Phan cong giam sat hanh lang: nhom phong thi theo dia diem (ghiChu),
+     * phan bo can bo giam sat theo ty le cho tung nhom dia diem,
+     * dam bao khong co can bo giam sat phong o nhieu dia diem khac nhau.
      */
     private List<GiamSat> phanCongGiamSat(int dotId, List<CanBo> giamSatCanBo, List<PhongThi> phongThiList) {
         List<GiamSat> result = new ArrayList<>();
 
-        if (giamSatCanBo.isEmpty()) {
+        if (giamSatCanBo.isEmpty() || phongThiList.isEmpty()) {
             return result;
+        }
+
+        // Buoc 1: Nhom phong thi theo dia diem (ghiChu), giu nguyen thu tu
+        LinkedHashMap<String, List<PhongThi>> locationGroups = new LinkedHashMap<>();
+        for (PhongThi pt : phongThiList) {
+            String location = (pt.getGhiChu() != null && !pt.getGhiChu().trim().isEmpty())
+                    ? pt.getGhiChu().trim()
+                    : "Khác";
+            locationGroups.computeIfAbsent(location, k -> new ArrayList<>()).add(pt);
         }
 
         int totalRooms = phongThiList.size();
         int supervisorCount = giamSatCanBo.size();
-        int roomsPerSupervisor = totalRooms / supervisorCount;
-        int remainder = totalRooms % supervisorCount;
 
-        int currentRoom = 0;
-        for (int i = 0; i < supervisorCount; i++) {
-            int roomCount = roomsPerSupervisor + (i < remainder ? 1 : 0);
-            if (roomCount == 0) roomCount = 1;
+        // Buoc 2: Phan bo so luong giam sat cho tung nhom dia diem theo ty le
+        List<String> locationKeys = new ArrayList<>(locationGroups.keySet());
+        int[] supervisorsPerLocation = new int[locationKeys.size()];
+        int assignedSupervisors = 0;
 
-            int startRoom = currentRoom;
-            int endRoom = Math.min(currentRoom + roomCount - 1, totalRooms - 1);
-
-            String tuPhong = phongThiList.get(startRoom).getPhongThi();
-            String denPhong = phongThiList.get(endRoom).getPhongThi();
-
-            GiamSat gs = new GiamSat(dotId, giamSatCanBo.get(i), tuPhong, denPhong);
-            result.add(gs);
-
-            currentRoom = endRoom + 1;
-            if (currentRoom >= totalRooms) {
-                // Cac can bo con lai giam sat tat ca phong
-                for (int j = i + 1; j < supervisorCount; j++) {
-                    GiamSat gsExtra = new GiamSat(dotId, giamSatCanBo.get(j),
-                            phongThiList.get(0).getPhongThi(),
-                            phongThiList.get(totalRooms - 1).getPhongThi());
-                    result.add(gsExtra);
-                }
-                break;
+        for (int i = 0; i < locationKeys.size(); i++) {
+            int groupSize = locationGroups.get(locationKeys.get(i)).size();
+            // Phan bo ty le, lam tron xuong
+            supervisorsPerLocation[i] = (int) Math.floor((double) groupSize / totalRooms * supervisorCount);
+            // Dam bao moi nhom co it nhat 1 giam sat
+            if (supervisorsPerLocation[i] < 1) {
+                supervisorsPerLocation[i] = 1;
             }
+            assignedSupervisors += supervisorsPerLocation[i];
+        }
+
+        // Phan bo giam sat con du cho nhom co nhieu phong nhat
+        int remaining = supervisorCount - assignedSupervisors;
+        if (remaining > 0) {
+            // Sap xep index theo so phong giam dan de uu tien nhom lon
+            List<Integer> sortedIndices = new ArrayList<>();
+            for (int i = 0; i < locationKeys.size(); i++) sortedIndices.add(i);
+            sortedIndices.sort((a, b) -> locationGroups.get(locationKeys.get(b)).size()
+                    - locationGroups.get(locationKeys.get(a)).size());
+
+            for (int idx = 0; remaining > 0; idx = (idx + 1) % sortedIndices.size()) {
+                supervisorsPerLocation[sortedIndices.get(idx)]++;
+                remaining--;
+            }
+        } else if (remaining < 0) {
+            // Neu tong vuot qua supervisorCount (do dam bao min 1), cat bot tu nhom nho nhat
+            List<Integer> sortedIndices = new ArrayList<>();
+            for (int i = 0; i < locationKeys.size(); i++) sortedIndices.add(i);
+            sortedIndices.sort((a, b) -> locationGroups.get(locationKeys.get(a)).size()
+                    - locationGroups.get(locationKeys.get(b)).size());
+
+            boolean canDecrease = true;
+            for (int idx = 0; remaining < 0 && canDecrease; idx = (idx + 1) % sortedIndices.size()) {
+                canDecrease = false;
+                for (int count : supervisorsPerLocation) {
+                    if (count > 0) { // Allow reducing to 0 if we really don't have enough supervisors
+                        canDecrease = true;
+                        break;
+                    }
+                }
+                
+                if (!canDecrease) break;
+
+                if (supervisorsPerLocation[sortedIndices.get(idx)] > 0) {
+                    supervisorsPerLocation[sortedIndices.get(idx)]--;
+                    remaining++;
+                }
+            }
+        }
+
+        // Buoc 3: Phan cong giam sat trong tung nhom dia diem
+        int supervisorIndex = 0;
+        for (int g = 0; g < locationKeys.size(); g++) {
+            List<PhongThi> groupRooms = locationGroups.get(locationKeys.get(g));
+            int groupSupervisorCount = supervisorsPerLocation[g];
+
+            // Dam bao khong vuot qua so luong giam sat con lai
+            if (supervisorIndex + groupSupervisorCount > supervisorCount) {
+                groupSupervisorCount = supervisorCount - supervisorIndex;
+            }
+            if (groupSupervisorCount <= 0) continue;
+
+            int groupRoomCount = groupRooms.size();
+            int roomsPerSupervisor = groupRoomCount / groupSupervisorCount;
+            int groupRemainder = groupRoomCount % groupSupervisorCount;
+
+            int currentRoom = 0;
+            for (int i = 0; i < groupSupervisorCount && supervisorIndex < supervisorCount; i++) {
+                int roomCount = roomsPerSupervisor + (i < groupRemainder ? 1 : 0);
+                if (roomCount == 0) roomCount = 1;
+
+                int startRoom = currentRoom;
+                int endRoom = Math.min(currentRoom + roomCount - 1, groupRoomCount - 1);
+
+                String tuPhong = groupRooms.get(startRoom).getPhongThi();
+                String denPhong = groupRooms.get(endRoom).getPhongThi();
+
+                GiamSat gs = new GiamSat(dotId, giamSatCanBo.get(supervisorIndex), tuPhong, denPhong, locationKeys.get(g));
+                result.add(gs);
+
+                supervisorIndex++;
+                currentRoom = endRoom + 1;
+                if (currentRoom >= groupRoomCount) break;
+            }
+        }
+
+        // Neu van con giam sat chua duoc phan cong (truong hop hiem), phan cong tat ca phong
+        for (int i = supervisorIndex; i < supervisorCount; i++) {
+            GiamSat gsExtra = new GiamSat(dotId, giamSatCanBo.get(i),
+                    phongThiList.get(0).getPhongThi(),
+                    phongThiList.get(phongThiList.size() - 1).getPhongThi(), "");
+            result.add(gsExtra);
         }
 
         return result;

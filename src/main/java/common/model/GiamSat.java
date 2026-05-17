@@ -13,6 +13,7 @@ public class GiamSat implements Serializable {
     private CanBo canBo;
     private String tuPhong;
     private String denPhong;
+    private String diaDiem;
 
     public GiamSat() {}
 
@@ -21,6 +22,14 @@ public class GiamSat implements Serializable {
         this.canBo = canBo;
         this.tuPhong = tuPhong;
         this.denPhong = denPhong;
+    }
+
+    public GiamSat(int dotId, CanBo canBo, String tuPhong, String denPhong, String diaDiem) {
+        this.dotId = dotId;
+        this.canBo = canBo;
+        this.tuPhong = tuPhong;
+        this.denPhong = denPhong;
+        this.diaDiem = diaDiem;
     }
 
     // Getters and Setters
@@ -39,9 +48,13 @@ public class GiamSat implements Serializable {
     public String getDenPhong() { return denPhong; }
     public void setDenPhong(String denPhong) { this.denPhong = denPhong; }
 
+    public String getDiaDiem() { return diaDiem; }
+    public void setDiaDiem(String diaDiem) { this.diaDiem = diaDiem; }
+
     @Override
     public String toString() {
         return "GiamSat{" + "canBo=" + canBo.getHoTen() +
-               ", tuPhong='" + tuPhong + "', denPhong='" + denPhong + "'}";
+               ", tuPhong='" + tuPhong + "', denPhong='" + denPhong +
+               "', diaDiem='" + diaDiem + "'}";
     }
 }

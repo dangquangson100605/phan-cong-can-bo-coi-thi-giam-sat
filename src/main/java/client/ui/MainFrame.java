@@ -21,6 +21,8 @@ public class MainFrame extends JFrame {
 
     private final ClientConnection connection;
     private JTextField hostField, portField;
+    private JTextField nField, mField; // n = so can bo, m = so phong thi (nhap tay)
+    private JLabel nMaxLabel, mMaxLabel; // Hien thi so toi da tu file Excel
     private JButton connectBtn, disconnectBtn;
     private JLabel statusLabel;
     private JLabel fileLabel;
@@ -126,6 +128,11 @@ public class MainFrame extends JFrame {
         JPanel panel = UIHelper.createTitledPanel("DU LIEU DAU VAO");
         panel.setLayout(new BorderLayout(0, 10));
 
+        // Top area: file chooser + m/n input
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.setOpaque(false);
+
         // File chooser area
         JPanel filePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         filePanel.setOpaque(false);
@@ -137,7 +144,37 @@ public class MainFrame extends JFrame {
         fileLabel = UIHelper.createLabel("Chua chon file", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         filePanel.add(fileLabel);
 
-        panel.add(filePanel, BorderLayout.NORTH);
+        topPanel.add(filePanel);
+
+        // m, n input area
+        JPanel mnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        mnPanel.setOpaque(false);
+
+        mnPanel.add(UIHelper.createLabel("n (So can bo):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
+        nField = UIHelper.createTextField(6);
+        nField.setToolTipText("Nhap so luong can bo coi thi (n)");
+        mnPanel.add(nField);
+        nMaxLabel = UIHelper.createLabel("", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
+        mnPanel.add(nMaxLabel);
+
+        mnPanel.add(Box.createHorizontalStrut(15));
+
+        mnPanel.add(UIHelper.createLabel("m (So phong thi):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
+        mField = UIHelper.createTextField(6);
+        mField.setToolTipText("Nhap so luong phong thi (m)");
+        mnPanel.add(mField);
+        mMaxLabel = UIHelper.createLabel("", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
+        mnPanel.add(mMaxLabel);
+
+        topPanel.add(mnPanel);
+
+        // Dieu kien label
+        JPanel condPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
+        condPanel.setOpaque(false);
+        condPanel.add(UIHelper.createLabel("\u26A0 Dieu kien: n \u2265 2m (so can bo phai gap doi so phong thi)", UIHelper.FONT_SMALL, UIHelper.WARNING));
+        topPanel.add(condPanel);
+
+        panel.add(topPanel, BorderLayout.NORTH);
 
         // Input data preview tabs
         inputTabs = new JTabbedPane();
@@ -302,7 +339,13 @@ public class MainFrame extends JFrame {
                     ptModel.addRow(new Object[]{stt++, pt.getPhongThi(), pt.getGhiChu()});
                 }
 
-                showInfo("Da doc " + canBoList.size() + " can bo va " + phongThiList.size() + " phong thi.");
+                // Chi cap nhat label toi da, KHONG ghi de n va m neu nguoi dung da nhap
+                nMaxLabel.setText("(file co: " + canBoList.size() + " can bo)");
+                mMaxLabel.setText("(file co: " + phongThiList.size() + " phong thi)");
+
+                showInfo("Da doc file thanh cong!\n" +
+                         "- File co: " + canBoList.size() + " can bo, " + phongThiList.size() + " phong thi.\n" +
+                         "- Hay nhap n (so can bo) va m (so phong thi) truoc khi gui phan cong.");
                 updateSendButton();
             } catch (Exception e) {
                 showError("Loi doc file Excel!\n" + e.getMessage());
@@ -323,13 +366,55 @@ public class MainFrame extends JFrame {
             return;
         }
 
+        // Doc va kiem tra n, m nhap tay
+        int n, m;
+        try {
+            n = Integer.parseInt(nField.getText().trim());
+            m = Integer.parseInt(mField.getText().trim());
+        } catch (NumberFormatException ex) {
+            showError("Vui long nhap so nguyen hop le cho n va m!");
+            return;
+        }
+
+        if (n <= 0 || m <= 0) {
+            showError("n va m phai lon hon 0!");
+            return;
+        }
+
+        if (n > canBoList.size()) {
+            showError("n = " + n + " vuot qua so can bo trong file Excel (" + canBoList.size() + ").\nVui long nhap lai!");
+            return;
+        }
+
+        if (m > phongThiList.size()) {
+            showError("m = " + m + " vuot qua so phong thi trong file Excel (" + phongThiList.size() + ").\nVui long nhap lai!");
+            return;
+        }
+
+        // Kiem tra dieu kien n >= 2*m
+        if (n < 2 * m) {
+            showError("Khong du can bo coi thi!\n" +
+                      "Can it nhat " + (2 * m) + " can bo cho " + m + " phong thi (n >= 2m),\n" +
+                      "nhung hien chi co n = " + n + " can bo.\n\n" +
+                      "Vui long nhap lai n va m!");
+            return;
+        }
+
+        // Lay ngau nhien n can bo tu danh sach (cong bang, khong luon lay nhom dau)
+        List<CanBo> shuffledCanBo = new java.util.ArrayList<>(canBoList);
+        java.util.Collections.shuffle(shuffledCanBo);
+        List<CanBo> selectedCanBo = new java.util.ArrayList<>(shuffledCanBo.subList(0, n));
+
+        // Lay m phong thi dau tien (phong thi theo thu tu vi tri)
+        List<PhongThi> selectedPhongThi = new java.util.ArrayList<>(phongThiList.subList(0, m));
+
         sendBtn.setEnabled(false);
         sendBtn.setText("Dang xu ly...");
 
         // Chay tren background thread
         new Thread(() -> {
             try {
-                RequestData data = new RequestData(canBoList, phongThiList);
+                RequestData data = new RequestData(selectedCanBo, selectedPhongThi);
                 Message request = new Message(MessageType.ASSIGNMENT_REQUEST, data);
                 Message response = connection.sendRequest(request);
 
@@ -337,7 +422,11 @@ public class MainFrame extends JFrame {
                     if (response.getType() == MessageType.ASSIGNMENT_RESULT) {
                         lastResult = (ResultData) response.getData();
                         displayResult(lastResult);
-                        showInfo("Phan cong thanh cong! Dot " + lastResult.getDotId());
+                        showInfo("Phan cong thanh cong! Dot " + lastResult.getDotId() +
+                                 "\n- So can bo (n): " + n +
+                                 "\n- So phong thi (m): " + m +
+                                 "\n- Giam thi: " + (2 * m) + " nguoi" +
+                                 "\n- Giam sat hanh lang: " + (n - 2 * m) + " nguoi");
                     } else {
                         showError("Loi tu Server:\n" + response.getData());
                     }

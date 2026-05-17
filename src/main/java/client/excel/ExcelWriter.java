@@ -7,6 +7,7 @@ import org.apache.poi.xssf.usermodel.*;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,100 +17,95 @@ import java.util.List;
  */
 public class ExcelWriter {
 
+    private static final int MAX_ROWS_PER_SHEET = 20;
+
     /**
      * Xuat file danh sach phan cong coi thi
      */
     public void exportPhanCong(String filePath, int dotId, List<PhanCong> phanCongList) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            XSSFSheet sheet = workbook.createSheet("PhanCongCoiThi");
-            sheet.setDefaultColumnWidth(18);
 
-            // Styles
-            CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle titleStyle = createTitleStyle(workbook);
             CellStyle subTitleStyle = createSubTitleStyle(workbook);
-            CellStyle dataStyle = createDataStyle(workbook);
             CellStyle centerStyle = createCenterStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dataStyle = createDataStyle(workbook);
+            CellStyle dataCenterStyle = createDataCenterStyle(workbook);
+            CellStyle smallBoldCenterStyle = createSmallBoldCenterStyle(workbook);
+            CellStyle quocHieuStyle = createQuocHieuStyle(workbook);
 
-            int rowNum = 0;
+            List<String[]> rows = new ArrayList<>();
+            int stt = 1;
 
-            // Quoc hieu
-            Row row0 = sheet.createRow(rowNum++);
-            Cell cell0 = row0.createCell(0);
-            cell0.setCellValue("CONG HOA XA HOI CHU NGHIA VIET NAM");
-            cell0.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
+            for (PhanCong pc : phanCongList) {
+                String phongThi = "";
 
-            Row row1 = sheet.createRow(rowNum++);
-            Cell cell1 = row1.createCell(0);
-            cell1.setCellValue("Doc lap - Tu do - Hanh phuc");
-            cell1.setCellStyle(subTitleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
+                if (pc.getPhongThi() != null && pc.getPhongThi().getPhongThi() != null) {
+                    phongThi = pc.getPhongThi().getPhongThi();
+                }
 
-            rowNum++; // Dong trong
+                if (pc.getGiamThi1() != null) {
+                    rows.add(new String[]{
+                            formatSTT(stt++),
+                            pc.getGiamThi1().getMaGV(),
+                            pc.getGiamThi1().getHoTen(),
+                            "X",
+                            "",
+                            phongThi
+                    });
+                }
 
-            Row row3 = sheet.createRow(rowNum++);
-            Cell cell3 = row3.createCell(0);
-            cell3.setCellValue("TRUONG DAI HOC CONG NGHE");
-            cell3.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(3, 3, 0, 7));
-
-            rowNum++; // Dong trong
-
-            Row row5 = sheet.createRow(rowNum++);
-            Cell cell5 = row5.createCell(0);
-            cell5.setCellValue("DANH SACH PHAN CONG CAN BO COI THI");
-            cell5.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(5, 5, 0, 7));
-
-            Row row6 = sheet.createRow(rowNum++);
-            Cell cell6 = row6.createCell(0);
-            cell6.setCellValue("Dot phan cong: " + dotId);
-            cell6.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(6, 6, 0, 7));
-
-            rowNum++; // Dong trong
-
-            // Header bang
-            Row headerRow = sheet.createRow(rowNum++);
-            String[] headers = {"STT", "Lan PC", "Phong Thi", "Dia diem", "Ma GV GT1", "Ho ten GT1", "Ma GV GT2", "Ho ten GT2"};
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
+                if (pc.getGiamThi2() != null) {
+                    rows.add(new String[]{
+                            formatSTT(stt++),
+                            pc.getGiamThi2().getMaGV(),
+                            pc.getGiamThi2().getHoTen(),
+                            "",
+                            "X",
+                            phongThi
+                    });
+                }
             }
 
-            // Data
-            for (int i = 0; i < phanCongList.size(); i++) {
-                PhanCong pc = phanCongList.get(i);
-                Row dataRow = sheet.createRow(rowNum++);
+            if (rows.isEmpty()) {
+                XSSFSheet sheet = workbook.createSheet("PhanCongCoiThi_1");
+                setupSheet(sheet);
+                int rowNum = createPhanCongHeader(sheet, dotId, titleStyle, subTitleStyle, centerStyle, headerStyle, smallBoldCenterStyle, quocHieuStyle);
+                finishPhanCongSheet(sheet, rowNum, centerStyle);
+            } else {
+                int sheetIndex = 1;
 
-                createCell(dataRow, 0, i + 1, dataStyle);
-                createCell(dataRow, 1, dotId, dataStyle);
-                createStringCell(dataRow, 2, pc.getPhongThi().getPhongThi(), dataStyle);
-                createStringCell(dataRow, 3, pc.getPhongThi().getGhiChu() != null ? pc.getPhongThi().getGhiChu() : "", dataStyle);
-                createStringCell(dataRow, 4, pc.getGiamThi1().getMaGV(), dataStyle);
-                createStringCell(dataRow, 5, pc.getGiamThi1().getHoTen(), dataStyle);
-                createStringCell(dataRow, 6, pc.getGiamThi2().getMaGV(), dataStyle);
-                createStringCell(dataRow, 7, pc.getGiamThi2().getHoTen(), dataStyle);
-            }
+                for (int start = 0; start < rows.size(); start += MAX_ROWS_PER_SHEET) {
+                    XSSFSheet sheet = workbook.createSheet("PhanCongCoiThi_" + sheetIndex++);
+                    setupSheet(sheet);
 
-            rowNum += 2;
-            Row signRow = sheet.createRow(rowNum);
-            Cell signCell = signRow.createCell(5);
-            signCell.setCellValue("Nguoi lap danh sach");
-            signCell.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowNum, rowNum, 5, 7));
+                    int rowNum = createPhanCongHeader(sheet, dotId, titleStyle, subTitleStyle, centerStyle, headerStyle, smallBoldCenterStyle, quocHieuStyle);
 
-            // Auto-size columns
-            for (int i = 0; i < 8; i++) {
-                sheet.autoSizeColumn(i);
+                    int end = Math.min(start + MAX_ROWS_PER_SHEET, rows.size());
+
+                    for (int i = start; i < end; i++) {
+                        String[] r = rows.get(i);
+
+                        Row dataRow = sheet.createRow(rowNum++);
+                        dataRow.setHeightInPoints(25);
+
+                        createStringCell(dataRow, 0, r[0], dataCenterStyle);
+                        createStringCell(dataRow, 1, r[1], dataCenterStyle);
+                        createStringCell(dataRow, 2, r[2], dataStyle);
+                        createStringCell(dataRow, 3, r[3], dataCenterStyle);
+                        createStringCell(dataRow, 4, r[4], dataCenterStyle);
+                        createStringCell(dataRow, 5, r[5], dataCenterStyle);
+                    }
+
+                    finishPhanCongSheet(sheet, rowNum, centerStyle);
+                }
             }
 
             try (FileOutputStream fos = new FileOutputStream(filePath)) {
                 workbook.write(fos);
             }
         }
+
         System.out.println("[ExcelWriter] Da xuat file phan cong: " + filePath);
     }
 
@@ -118,101 +114,297 @@ public class ExcelWriter {
      */
     public void exportGiamSat(String filePath, int dotId, List<GiamSat> giamSatList) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            XSSFSheet sheet = workbook.createSheet("GiamSatHanhLang");
-            sheet.setDefaultColumnWidth(18);
 
-            CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle titleStyle = createTitleStyle(workbook);
             CellStyle subTitleStyle = createSubTitleStyle(workbook);
-            CellStyle dataStyle = createDataStyle(workbook);
             CellStyle centerStyle = createCenterStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dataStyle = createDataStyle(workbook);
+            CellStyle dataCenterStyle = createDataCenterStyle(workbook);
+            CellStyle smallBoldCenterStyle = createSmallBoldCenterStyle(workbook);
+            CellStyle quocHieuStyle = createQuocHieuStyle(workbook);
 
-            int rowNum = 0;
+            if (giamSatList.isEmpty()) {
+                XSSFSheet sheet = workbook.createSheet("GiamSatHanhLang_1");
+                setupSheet(sheet);
+                int rowNum = createGiamSatHeader(sheet, dotId, titleStyle, subTitleStyle, centerStyle, headerStyle, smallBoldCenterStyle, quocHieuStyle);
+                finishGiamSatSheet(sheet, rowNum, centerStyle);
+            } else {
+                int sheetIndex = 1;
 
-            // Quoc hieu
-            Row row0 = sheet.createRow(rowNum++);
-            Cell cell0 = row0.createCell(0);
-            cell0.setCellValue("CONG HOA XA HOI CHU NGHIA VIET NAM");
-            cell0.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
+                for (int start = 0; start < giamSatList.size(); start += MAX_ROWS_PER_SHEET) {
+                    XSSFSheet sheet = workbook.createSheet("GiamSatHanhLang_" + sheetIndex++);
+                    setupSheet(sheet);
 
-            Row row1 = sheet.createRow(rowNum++);
-            Cell cell1 = row1.createCell(0);
-            cell1.setCellValue("Doc lap - Tu do - Hanh phuc");
-            cell1.setCellStyle(subTitleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 6));
+                    int rowNum = createGiamSatHeader(sheet, dotId, titleStyle, subTitleStyle, centerStyle, headerStyle, smallBoldCenterStyle, quocHieuStyle);
 
-            rowNum++;
+                    int end = Math.min(start + MAX_ROWS_PER_SHEET, giamSatList.size());
 
-            Row row3 = sheet.createRow(rowNum++);
-            Cell cell3 = row3.createCell(0);
-            cell3.setCellValue("TRUONG DAI HOC CONG NGHE");
-            cell3.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(3, 3, 0, 6));
+                    for (int i = start; i < end; i++) {
+                        GiamSat gs = giamSatList.get(i);
 
-            rowNum++;
+                        Row dataRow = sheet.createRow(rowNum++);
+                        dataRow.setHeightInPoints(25);
 
-            Row row5 = sheet.createRow(rowNum++);
-            Cell cell5 = row5.createCell(0);
-            cell5.setCellValue("DANH SACH CAN BO GIAM SAT HANH LANG");
-            cell5.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(5, 5, 0, 6));
+                        String maGV = "";
+                        String hoTen = "";
 
-            Row row6 = sheet.createRow(rowNum++);
-            Cell cell6 = row6.createCell(0);
-            cell6.setCellValue("Dot phan cong: " + dotId);
-            cell6.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(6, 6, 0, 6));
+                        if (gs.getCanBo() != null) {
+                            maGV = gs.getCanBo().getMaGV();
+                            hoTen = gs.getCanBo().getHoTen();
+                        }
 
-            rowNum++;
+                        String phongGiamSat = buildPhongGiamSat(gs.getTuPhong(), gs.getDenPhong());
+                        String diaDiem = gs.getDiaDiem() != null ? gs.getDiaDiem() : "";
 
-            // Header bang
-            Row headerRow = sheet.createRow(rowNum++);
-            String[] headers = {"STT", "Lan PC", "Ma GV", "Ho ten", "Don vi cong tac", "Tu phong", "Den phong"};
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
-            }
+                        createStringCell(dataRow, 0, formatSTT(i + 1), dataCenterStyle);
+                        createStringCell(dataRow, 1, maGV, dataCenterStyle);
+                        createStringCell(dataRow, 2, hoTen, dataStyle);
+                        createStringCell(dataRow, 3, phongGiamSat, dataStyle);
+                        createStringCell(dataRow, 4, diaDiem, dataStyle);
+                    }
 
-            // Data
-            for (int i = 0; i < giamSatList.size(); i++) {
-                GiamSat gs = giamSatList.get(i);
-                Row dataRow = sheet.createRow(rowNum++);
-
-                createCell(dataRow, 0, i + 1, dataStyle);
-                createCell(dataRow, 1, dotId, dataStyle);
-                createStringCell(dataRow, 2, gs.getCanBo().getMaGV(), dataStyle);
-                createStringCell(dataRow, 3, gs.getCanBo().getHoTen(), dataStyle);
-                createStringCell(dataRow, 4, gs.getCanBo().getDonVi() != null ? gs.getCanBo().getDonVi() : "", dataStyle);
-                createStringCell(dataRow, 5, gs.getTuPhong(), dataStyle);
-                createStringCell(dataRow, 6, gs.getDenPhong(), dataStyle);
-            }
-
-            rowNum += 2;
-            Row signRow = sheet.createRow(rowNum);
-            Cell signCell = signRow.createCell(4);
-            signCell.setCellValue("Nguoi lap danh sach");
-            signCell.setCellStyle(centerStyle);
-            sheet.addMergedRegion(new CellRangeAddress(rowNum, rowNum, 4, 6));
-
-            for (int i = 0; i < 7; i++) {
-                sheet.autoSizeColumn(i);
+                    finishGiamSatSheet(sheet, rowNum, centerStyle);
+                }
             }
 
             try (FileOutputStream fos = new FileOutputStream(filePath)) {
                 workbook.write(fos);
             }
         }
+
         System.out.println("[ExcelWriter] Da xuat file giam sat: " + filePath);
     }
 
-    // === Helper methods ===
+    // ============================================================
+    // Header phan cong coi thi
+    // ============================================================
 
-    private void createCell(Row row, int col, int value, CellStyle style) {
-        Cell cell = row.createCell(col);
+    private int createPhanCongHeader(
+            XSSFSheet sheet,
+            int dotId,
+            CellStyle titleStyle,
+            CellStyle subTitleStyle,
+            CellStyle centerStyle,
+            CellStyle headerStyle,
+            CellStyle smallBoldCenterStyle,
+            CellStyle quocHieuStyle
+    ) {
+        int rowNum = 0;
+
+        Row row0 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row0, 0, 2,
+                "TRƯỜNG ĐẠI HỌC CÔNG NGHỆ",
+                smallBoldCenterStyle);
+        createMergedCell(sheet, row0, 3, 5,
+                "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+                quocHieuStyle);
+
+        Row row1 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row1, 0, 2,
+                "HỘI ĐỒNG THI TỐT NGHIỆP",
+                smallBoldCenterStyle);
+        createMergedCell(sheet, row1, 3, 5,
+                "Độc lập - Tự do - Hạnh phúc",
+                subTitleStyle);
+
+        rowNum += 2;
+
+        Row row5 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row5, 0, 5,
+                "DANH SÁCH PHÂN CÔNG CÁN BỘ COI THI",
+                titleStyle);
+
+        Row row6 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row6, 0, 5,
+                "Đợt phân công: " + dotId,
+                centerStyle);
+
+        rowNum++;
+
+        int tableHeaderStartRow = rowNum;
+
+        Row headerRow1 = sheet.createRow(rowNum++);
+        Row headerRow2 = sheet.createRow(rowNum++);
+
+        headerRow1.setHeightInPoints(28);
+        headerRow2.setHeightInPoints(32);
+
+        createStringCell(headerRow1, 0, "STT", headerStyle);
+        createStringCell(headerRow2, 0, "", headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(tableHeaderStartRow, tableHeaderStartRow + 1, 0, 0));
+
+        createStringCell(headerRow1, 1, "Mã GV", headerStyle);
+        createStringCell(headerRow2, 1, "", headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(tableHeaderStartRow, tableHeaderStartRow + 1, 1, 1));
+
+        createStringCell(headerRow1, 2, "Họ và tên", headerStyle);
+        createStringCell(headerRow2, 2, "", headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(tableHeaderStartRow, tableHeaderStartRow + 1, 2, 2));
+
+        createStringCell(headerRow1, 3, "GIÁM THỊ", headerStyle);
+        createStringCell(headerRow1, 4, "", headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(tableHeaderStartRow, tableHeaderStartRow, 3, 4));
+
+        createStringCell(headerRow2, 3, "Giám thị\n1", headerStyle);
+        createStringCell(headerRow2, 4, "Giám thị\n2", headerStyle);
+
+        createStringCell(headerRow1, 5, "Phòng thi", headerStyle);
+        createStringCell(headerRow2, 5, "", headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(tableHeaderStartRow, tableHeaderStartRow + 1, 5, 5));
+
+        sheet.setColumnWidth(0, 8 * 256);
+        sheet.setColumnWidth(1, 16 * 256);
+        sheet.setColumnWidth(2, 26 * 256);
+        sheet.setColumnWidth(3, 16 * 256);
+        sheet.setColumnWidth(4, 16 * 256);
+        sheet.setColumnWidth(5, 18 * 256);
+
+        return rowNum;
+    }
+
+    private void finishPhanCongSheet(XSSFSheet sheet, int rowNum, CellStyle centerStyle) {
+        rowNum += 2;
+
+        Row signRow = sheet.createRow(rowNum);
+        createMergedCell(sheet, signRow, 3, 5,
+                "Người lập danh sách",
+                centerStyle);
+    }
+
+    // ============================================================
+    // Header giam sat hanh lang
+    // ============================================================
+
+    private int createGiamSatHeader(
+            XSSFSheet sheet,
+            int dotId,
+            CellStyle titleStyle,
+            CellStyle subTitleStyle,
+            CellStyle centerStyle,
+            CellStyle headerStyle,
+            CellStyle smallBoldCenterStyle,
+            CellStyle quocHieuStyle
+    ) {
+        int rowNum = 0;
+
+        Row row0 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row0, 0, 2,
+                "TRƯỜNG ĐẠI HỌC CÔNG NGHỆ",
+                smallBoldCenterStyle);
+        createMergedCell(sheet, row0, 3, 4,
+                "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+                quocHieuStyle);
+
+        Row row1 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row1, 0, 2,
+                "HỘI ĐỒNG THI TỐT NGHIỆP",
+                smallBoldCenterStyle);
+        createMergedCell(sheet, row1, 3, 4,
+                "Độc lập - Tự do - Hạnh phúc",
+                subTitleStyle);
+
+        rowNum += 2;
+
+        Row row5 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row5, 0, 4,
+                "DANH SÁCH CÁN BỘ GIÁM SÁT HÀNH LANG",
+                titleStyle);
+
+        Row row6 = sheet.createRow(rowNum++);
+        createMergedCell(sheet, row6, 0, 4,
+                "Đợt phân công: " + dotId,
+                centerStyle);
+
+        rowNum++;
+
+        Row headerRow = sheet.createRow(rowNum++);
+        headerRow.setHeightInPoints(36);
+
+        createStringCell(headerRow, 0, "STT", headerStyle);
+        createStringCell(headerRow, 1, "Mã GV", headerStyle);
+        createStringCell(headerRow, 2, "Họ và tên", headerStyle);
+        createStringCell(headerRow, 3, "Phòng thi được giám sát", headerStyle);
+        createStringCell(headerRow, 4, "Địa điểm", headerStyle);
+
+        sheet.setColumnWidth(0, 10 * 256);
+        sheet.setColumnWidth(1, 16 * 256);
+        sheet.setColumnWidth(2, 26 * 256);
+        sheet.setColumnWidth(3, 38 * 256);
+        sheet.setColumnWidth(4, 22 * 256);
+
+        return rowNum;
+    }
+
+    private void finishGiamSatSheet(XSSFSheet sheet, int rowNum, CellStyle centerStyle) {
+        rowNum += 2;
+
+        Row signRow = sheet.createRow(rowNum);
+        createMergedCell(sheet, signRow, 3, 4,
+                "Người lập danh sách",
+                centerStyle);
+    }
+
+    // ============================================================
+    // Helper methods
+    // ============================================================
+
+    private void setupSheet(XSSFSheet sheet) {
+        sheet.setDisplayGridlines(false);
+
+        PrintSetup printSetup = sheet.getPrintSetup();
+        printSetup.setPaperSize(PrintSetup.A4_PAPERSIZE);
+        printSetup.setLandscape(false);
+        printSetup.setFitWidth((short) 1);
+        printSetup.setFitHeight((short) 0);
+
+        sheet.setFitToPage(true);
+
+        sheet.setMargin(Sheet.TopMargin, 0.4);
+        sheet.setMargin(Sheet.BottomMargin, 0.4);
+        sheet.setMargin(Sheet.LeftMargin, 0.4);
+        sheet.setMargin(Sheet.RightMargin, 0.4);
+    }
+
+    private String formatSTT(int stt) {
+        return String.format("%02d", stt);
+    }
+
+    private String buildPhongGiamSat(String tuPhong, String denPhong) {
+        if (tuPhong == null) {
+            tuPhong = "";
+        }
+
+        if (denPhong == null) {
+            denPhong = "";
+        }
+
+        if (!tuPhong.isEmpty() && !denPhong.isEmpty()) {
+            return "Từ " + tuPhong + " đến " + denPhong;
+        }
+
+        if (!tuPhong.isEmpty()) {
+            return "Từ " + tuPhong;
+        }
+
+        if (!denPhong.isEmpty()) {
+            return "Đến " + denPhong;
+        }
+
+        return "";
+    }
+
+    private void createMergedCell(XSSFSheet sheet, Row row, int firstCol, int lastCol, String value, CellStyle style) {
+        Cell cell = row.createCell(firstCol);
         cell.setCellValue(value);
         cell.setCellStyle(style);
+
+        for (int col = firstCol + 1; col <= lastCol; col++) {
+            Cell emptyCell = row.createCell(col);
+            emptyCell.setCellStyle(style);
+        }
+
+        sheet.addMergedRegion(new CellRangeAddress(row.getRowNum(), row.getRowNum(), firstCol, lastCol));
     }
 
     private void createStringCell(Row row, int col, String value, CellStyle style) {
@@ -223,54 +415,135 @@ public class ExcelWriter {
 
     private CellStyle createHeaderStyle(XSSFWorkbook wb) {
         CellStyle style = wb.createCellStyle();
+
         XSSFFont font = wb.createFont();
         font.setBold(true);
-        font.setFontHeightInPoints((short) 11);
+        font.setFontHeightInPoints((short) 12);
+        font.setFontName("Times New Roman");
+
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true);
+
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderBottom(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
-        style.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
         return style;
     }
 
     private CellStyle createTitleStyle(XSSFWorkbook wb) {
         CellStyle style = wb.createCellStyle();
+
         XSSFFont font = wb.createFont();
         font.setBold(true);
         font.setFontHeightInPoints((short) 14);
+        font.setFontName("Times New Roman");
+
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
         return style;
     }
 
     private CellStyle createSubTitleStyle(XSSFWorkbook wb) {
         CellStyle style = wb.createCellStyle();
+
         XSSFFont font = wb.createFont();
         font.setItalic(true);
         font.setFontHeightInPoints((short) 12);
+        font.setFontName("Times New Roman");
+
         style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
         return style;
     }
 
     private CellStyle createDataStyle(XSSFWorkbook wb) {
         CellStyle style = wb.createCellStyle();
+
+        XSSFFont font = wb.createFont();
+        font.setFontHeightInPoints((short) 12);
+        font.setFontName("Times New Roman");
+
+        style.setFont(font);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true);
+
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderBottom(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
+
+        return style;
+    }
+
+    private CellStyle createDataCenterStyle(XSSFWorkbook wb) {
+        CellStyle style = wb.createCellStyle();
+
+        XSSFFont font = wb.createFont();
+        font.setFontHeightInPoints((short) 12);
+        font.setFontName("Times New Roman");
+
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true);
+
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+
         return style;
     }
 
     private CellStyle createCenterStyle(XSSFWorkbook wb) {
         CellStyle style = wb.createCellStyle();
+
+        XSSFFont font = wb.createFont();
+        font.setFontHeightInPoints((short) 12);
+        font.setFontName("Times New Roman");
+
+        style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        return style;
+    }
+
+    private CellStyle createSmallBoldCenterStyle(XSSFWorkbook wb) {
+        CellStyle style = wb.createCellStyle();
+
+        XSSFFont font = wb.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Times New Roman");
+
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        return style;
+    }
+
+    private CellStyle createQuocHieuStyle(XSSFWorkbook wb) {
+        CellStyle style = wb.createCellStyle();
+
+        XSSFFont font = wb.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 13);
+        font.setFontName("Times New Roman");
+
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
         return style;
     }
 }

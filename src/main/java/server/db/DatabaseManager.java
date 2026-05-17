@@ -58,71 +58,92 @@ public class DatabaseManager {
         }
         connect();
         try (Statement stmt = connection.createStatement()) {
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CanBo (id INT PRIMARY KEY, ma_gv VARCHAR(20) NOT NULL, ho_ten VARCHAR(100) NOT NULL, ngay_sinh DATE, don_vi VARCHAR(200), UNIQUE KEY uk_ma_gv (ma_gv)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS CanBo (id INT AUTO_INCREMENT PRIMARY KEY, ma_gv VARCHAR(20) NOT NULL, ho_ten VARCHAR(100) NOT NULL, ngay_sinh DATE, don_vi VARCHAR(200), UNIQUE KEY uk_ma_gv (ma_gv)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS PhongThi (id INT AUTO_INCREMENT PRIMARY KEY, phong_thi VARCHAR(50) NOT NULL, ghi_chu VARCHAR(200), UNIQUE KEY uk_phong_thi (phong_thi)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS DotPhanCong (id INT AUTO_INCREMENT PRIMARY KEY, thoi_gian_tao DATETIME DEFAULT CURRENT_TIMESTAMP, so_phong INT NOT NULL, so_can_bo INT NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS PhanCong (id INT AUTO_INCREMENT PRIMARY KEY, dot_id INT NOT NULL, phong_thi_id INT NOT NULL, giam_thi_1_id INT NOT NULL, giam_thi_2_id INT NOT NULL, FOREIGN KEY (dot_id) REFERENCES DotPhanCong(id) ON DELETE CASCADE, FOREIGN KEY (phong_thi_id) REFERENCES PhongThi(id) ON DELETE CASCADE, FOREIGN KEY (giam_thi_1_id) REFERENCES CanBo(id) ON DELETE CASCADE, FOREIGN KEY (giam_thi_2_id) REFERENCES CanBo(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS GiamSat (id INT AUTO_INCREMENT PRIMARY KEY, dot_id INT NOT NULL, can_bo_id INT NOT NULL, tu_phong VARCHAR(50), den_phong VARCHAR(50), FOREIGN KEY (dot_id) REFERENCES DotPhanCong(id) ON DELETE CASCADE, FOREIGN KEY (can_bo_id) REFERENCES CanBo(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS GiamSat (id INT AUTO_INCREMENT PRIMARY KEY, dot_id INT NOT NULL, can_bo_id INT NOT NULL, tu_phong VARCHAR(50), den_phong VARCHAR(50), dia_diem VARCHAR(200), FOREIGN KEY (dot_id) REFERENCES DotPhanCong(id) ON DELETE CASCADE, FOREIGN KEY (can_bo_id) REFERENCES CanBo(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            try {
+                stmt.executeUpdate("ALTER TABLE GiamSat ADD COLUMN dia_diem VARCHAR(200)");
+            } catch (SQLException e) {
+                // Ignore if column already exists
+            }
             System.out.println("[DB] Cac bang da duoc tao/kiem tra thanh cong.");
         }
     }
 
-    public void saveCanBoList(List<CanBo> canBoList) throws SQLException {
-        String insertSql = "INSERT INTO CanBo (id, ma_gv, ho_ten, ngay_sinh, don_vi) VALUES (?, ?, ?, ?, ?) " +
-                           "ON DUPLICATE KEY UPDATE ho_ten=VALUES(ho_ten), ngay_sinh=VALUES(ngay_sinh), don_vi=VALUES(don_vi), ma_gv=VALUES(ma_gv)";
+    /**
+     * Luu danh sach can bo vao DB. Su dung ma_gv lam khoa nghiep vu (UNIQUE KEY).
+     * Tra ve danh sach CanBo voi id thuc te tu DB (AUTO_INCREMENT).
+     */
+    public List<CanBo> saveCanBoList(List<CanBo> canBoList) throws SQLException {
+        String insertSql = "INSERT INTO CanBo (ma_gv, ho_ten, ngay_sinh, don_vi) VALUES (?, ?, ?, ?) " +
+                           "ON DUPLICATE KEY UPDATE ho_ten=VALUES(ho_ten), ngay_sinh=VALUES(ngay_sinh), don_vi=VALUES(don_vi)";
 
         boolean autoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
-            // Xoa ban ghi co trung ma_gv nhung khac id (tranh xung dot giua PK va UK)
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("SET FOREIGN_KEY_CHECKS=0");
-            }
-
-            // Xoa cac ban ghi co trung ma_gv nhung khac id
-            String cleanSql = "DELETE FROM CanBo WHERE ma_gv = ? AND id != ?";
-            try (PreparedStatement cleanPs = connection.prepareStatement(cleanSql)) {
-                for (CanBo cb : canBoList) {
-                    cleanPs.setString(1, cb.getMaGV());
-                    cleanPs.setInt(2, cb.getId());
-                    cleanPs.addBatch();
-                }
-                cleanPs.executeBatch();
-            }
-
-            // Insert hoac update
             try (PreparedStatement insPs = connection.prepareStatement(insertSql)) {
                 for (CanBo cb : canBoList) {
-                    insPs.setInt(1, cb.getId());
-                    insPs.setString(2, cb.getMaGV());
-                    insPs.setString(3, cb.getHoTen());
+                    insPs.setString(1, cb.getMaGV());
+                    insPs.setString(2, cb.getHoTen());
                     if (cb.getNgaySinh() != null) {
-                        insPs.setDate(4, new java.sql.Date(cb.getNgaySinh().getTime()));
+                        insPs.setDate(3, new java.sql.Date(cb.getNgaySinh().getTime()));
                     } else {
-                        insPs.setNull(4, Types.DATE);
+                        insPs.setNull(3, Types.DATE);
                     }
-                    insPs.setString(5, cb.getDonVi());
+                    insPs.setString(4, cb.getDonVi());
                     insPs.addBatch();
                 }
                 insPs.executeBatch();
             }
 
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("SET FOREIGN_KEY_CHECKS=1");
-            }
-
             connection.commit();
             System.out.println("[DB] Da luu " + canBoList.size() + " can bo.");
         } catch (SQLException e) {
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("SET FOREIGN_KEY_CHECKS=1");
-            }
             connection.rollback();
             System.err.println("[DB] LOI khi luu can bo: " + e.getMessage());
             throw e;
         } finally {
             connection.setAutoCommit(autoCommit);
         }
+
+        // Tai lai danh sach can bo tu DB de lay id thuc te (AUTO_INCREMENT)
+        return reloadCanBoByMaGV(canBoList);
+    }
+
+    /**
+     * Tai lai danh sach can bo tu DB theo ma_gv de lay dung id (AUTO_INCREMENT).
+     * Su dung 1 query duy nhat de toi uu voi du lieu lon.
+     */
+    private List<CanBo> reloadCanBoByMaGV(List<CanBo> canBoList) throws SQLException {
+        // Tai tat ca can bo tu DB 1 lan, map theo ma_gv
+        Map<String, CanBo> dbMap = new HashMap<>();
+        String selectAll = "SELECT id, ma_gv, ho_ten, ngay_sinh, don_vi FROM CanBo";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(selectAll)) {
+            while (rs.next()) {
+                CanBo cb = new CanBo(
+                    rs.getInt("id"),
+                    rs.getString("ma_gv"),
+                    rs.getString("ho_ten"),
+                    rs.getDate("ngay_sinh"),
+                    rs.getString("don_vi")
+                );
+                dbMap.put(cb.getMaGV(), cb);
+            }
+        }
+
+        // Map lai theo thu tu danh sach input
+        List<CanBo> result = new ArrayList<>();
+        for (CanBo cb : canBoList) {
+            CanBo fromDb = dbMap.get(cb.getMaGV());
+            if (fromDb != null) {
+                result.add(fromDb);
+            }
+        }
+        System.out.println("[DB] Da tai lai " + result.size() + " can bo tu DB.");
+        return result;
     }
 
     public List<PhongThi> savePhongThiList(List<PhongThi> phongThiList) throws SQLException {
@@ -135,16 +156,23 @@ public class DatabaseManager {
             }
             ps.executeBatch();
         }
+
+        // Tai lai tat ca phong thi tu DB 1 lan, map theo ten phong
+        Map<String, PhongThi> dbMap = new HashMap<>();
+        String selectAll = "SELECT id, phong_thi, ghi_chu FROM PhongThi";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(selectAll)) {
+            while (rs.next()) {
+                PhongThi pt = new PhongThi(rs.getInt("id"), rs.getString("phong_thi"), rs.getString("ghi_chu"));
+                dbMap.put(pt.getPhongThi(), pt);
+            }
+        }
+
         List<PhongThi> result = new ArrayList<>();
-        String selectSql = "SELECT id, phong_thi, ghi_chu FROM PhongThi WHERE phong_thi = ?";
-        try (PreparedStatement ps = connection.prepareStatement(selectSql)) {
-            for (PhongThi pt : phongThiList) {
-                ps.setString(1, pt.getPhongThi());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        result.add(new PhongThi(rs.getInt("id"), rs.getString("phong_thi"), rs.getString("ghi_chu")));
-                    }
-                }
+        for (PhongThi pt : phongThiList) {
+            PhongThi fromDb = dbMap.get(pt.getPhongThi());
+            if (fromDb != null) {
+                result.add(fromDb);
             }
         }
         System.out.println("[DB] Da luu " + result.size() + " phong thi.");
@@ -184,13 +212,14 @@ public class DatabaseManager {
     }
 
     public void saveGiamSat(int dotId, List<GiamSat> giamSatList) throws SQLException {
-        String sql = "INSERT INTO GiamSat (dot_id, can_bo_id, tu_phong, den_phong) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO GiamSat (dot_id, can_bo_id, tu_phong, den_phong, dia_diem) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             for (GiamSat gs : giamSatList) {
                 ps.setInt(1, dotId);
                 ps.setInt(2, gs.getCanBo().getId());
                 ps.setString(3, gs.getTuPhong());
                 ps.setString(4, gs.getDenPhong());
+                ps.setString(5, gs.getDiaDiem());
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -268,14 +297,14 @@ public class DatabaseManager {
 
     public List<GiamSat> getGiamSatByDot(int dotId) throws SQLException {
         List<GiamSat> result = new ArrayList<>();
-        String sql = "SELECT gs.id, gs.dot_id, gs.tu_phong, gs.den_phong, cb.id as cb_id, cb.ma_gv, cb.ho_ten, cb.ngay_sinh, cb.don_vi " +
+        String sql = "SELECT gs.id, gs.dot_id, gs.tu_phong, gs.den_phong, gs.dia_diem, cb.id as cb_id, cb.ma_gv, cb.ho_ten, cb.ngay_sinh, cb.don_vi " +
                      "FROM GiamSat gs JOIN CanBo cb ON gs.can_bo_id = cb.id WHERE gs.dot_id = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, dotId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     CanBo cb = new CanBo(rs.getInt("cb_id"), rs.getString("ma_gv"), rs.getString("ho_ten"), rs.getDate("ngay_sinh"), rs.getString("don_vi"));
-                    GiamSat gs = new GiamSat(rs.getInt("dot_id"), cb, rs.getString("tu_phong"), rs.getString("den_phong"));
+                    GiamSat gs = new GiamSat(rs.getInt("dot_id"), cb, rs.getString("tu_phong"), rs.getString("den_phong"), rs.getString("dia_diem"));
                     gs.setId(rs.getInt("id"));
                     result.add(gs);
                 }
