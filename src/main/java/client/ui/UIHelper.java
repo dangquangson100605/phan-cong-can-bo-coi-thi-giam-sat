@@ -3,6 +3,7 @@ package client.ui;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
+import java.net.URL;
 
 /**
  * Utilities cho giao dien Swing - Light theme, modern desktop style.
@@ -14,6 +15,7 @@ public class UIHelper {
     public static final Color PRIMARY_DARK = new Color(29, 78, 216);
     public static final Color PRIMARY_LIGHT = new Color(219, 234, 254);
     public static final Color ACCENT = new Color(16, 185, 129);        // #10B981
+    public static final Color PURPLE = new Color(139, 92, 246);        // #8B5CF6
 
     public static final Color BG_APP = new Color(245, 247, 251);       // #F5F7FB
     public static final Color BG_PANEL = new Color(255, 255, 255);
@@ -237,45 +239,97 @@ public class UIHelper {
     /**
      * Tao stat card cho panel ket qua
      */
-    public static JPanel createStatCard(String icon, String label, String value, String sub, Color iconColor) {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR, 1),
-                BorderFactory.createEmptyBorder(12, 10, 12, 10)
-        ));
+    public static JPanel createStatCard(String iconStr, String label,
+                                    String value, String sub,
+                                    Color iconColor) {
 
-        JLabel iconLbl = new JLabel(icon, SwingConstants.CENTER);
-        iconLbl.setFont(new Font("Segoe UI", Font.PLAIN, 28));
-        iconLbl.setForeground(iconColor);
-        iconLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+    JPanel card = new JPanel();
+    card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+    card.setBackground(Color.WHITE);
+    card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(BORDER_COLOR, 1),
+            BorderFactory.createEmptyBorder(12, 10, 12, 10)
+    ));
 
-        JLabel labelLbl = new JLabel(label, SwingConstants.CENTER);
-        labelLbl.setFont(FONT_STAT_LABEL);
-        labelLbl.setForeground(TEXT_SECONDARY);
-        labelLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+    // ===== Load icon =====
+    ImageIcon icon = null;
 
-        JLabel valueLbl = new JLabel(value, SwingConstants.CENTER);
-        valueLbl.setFont(FONT_STAT_VALUE);
-        valueLbl.setForeground(iconColor);
-        valueLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+    if (iconStr != null && !iconStr.isEmpty()) {
+        URL url = UIHelper.class.getResource("/icons/" + iconStr);
 
-        JLabel subLbl = new JLabel(sub, SwingConstants.CENTER);
-        subLbl.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-        subLbl.setForeground(TEXT_SECONDARY);
-        subLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        if (url != null) {
+            ImageIcon rawIcon = new ImageIcon(url);
 
-        card.add(Box.createVerticalGlue());
-        card.add(iconLbl);
-        card.add(Box.createVerticalStrut(2));
-        card.add(labelLbl);
-        card.add(Box.createVerticalStrut(4));
-        card.add(valueLbl);
-        card.add(Box.createVerticalStrut(2));
-        card.add(subLbl);
-        card.add(Box.createVerticalGlue());
+            Image scaledImage = rawIcon.getImage().getScaledInstance(
+                    24, 24, Image.SCALE_SMOOTH
+            );
 
-        return card;
+            icon = new ImageIcon(scaledImage);
+        } else {
+            System.out.println("Khong tim thay icon: " + iconStr);
+        }
     }
+
+    // ===== Icon label =====
+    JLabel iconLbl = new JLabel(icon, SwingConstants.CENTER);
+    iconLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+    // ===== Panel nền tròn cho icon =====
+    JPanel iconPanel = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON
+            );
+
+            g2.setColor(new Color(245, 245, 245)); // xám nhạt
+            g2.fillOval(0, 0, getWidth(), getHeight());
+
+            g2.dispose();
+        }
+    };
+
+    iconPanel.setOpaque(false);
+    iconPanel.setLayout(new GridBagLayout());
+    iconPanel.setPreferredSize(new Dimension(48, 48));
+    iconPanel.setMaximumSize(new Dimension(48, 48));
+    iconPanel.setMinimumSize(new Dimension(48, 48));
+    iconPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    iconPanel.add(iconLbl);
+
+    // ===== Label =====
+    JLabel labelLbl = new JLabel(label, SwingConstants.CENTER);
+    labelLbl.setFont(FONT_STAT_LABEL);
+    labelLbl.setForeground(TEXT_SECONDARY);
+    labelLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+    // ===== Value =====
+    JLabel valueLbl = new JLabel(value, SwingConstants.CENTER);
+    valueLbl.setFont(FONT_STAT_VALUE);
+    valueLbl.setForeground(iconColor);
+    valueLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+    // ===== Sub text =====
+    JLabel subLbl = new JLabel(sub, SwingConstants.CENTER);
+    subLbl.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+    subLbl.setForeground(TEXT_SECONDARY);
+    subLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+    // ===== Add components =====
+    card.add(Box.createVerticalGlue());
+    card.add(iconPanel);
+    card.add(Box.createVerticalStrut(8));
+    card.add(labelLbl);
+    card.add(Box.createVerticalStrut(4));
+    card.add(valueLbl);
+    card.add(Box.createVerticalStrut(2));
+    card.add(subLbl);
+    card.add(Box.createVerticalGlue());
+
+    return card;
+}
 }

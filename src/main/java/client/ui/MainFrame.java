@@ -254,10 +254,10 @@ public class MainFrame extends JFrame {
         statPanel.setOpaque(false);
         statPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 0));
 
-        JPanel card1 = UIHelper.createStatCard("", "T\u1ed5ng c\u00e1n b\u1ed9 ch\u1ecdn (n)", "--", "", UIHelper.PRIMARY);
-        JPanel card2 = UIHelper.createStatCard("", "S\u1ed1 ph\u00f2ng thi (m)", "--", "", UIHelper.PRIMARY);
-        JPanel card3 = UIHelper.createStatCard("", "C\u00e1n b\u1ed9 coi thi", "--", "(2m)", new Color(234, 88, 12));
-        JPanel card4 = UIHelper.createStatCard("", "Gi\u00e1m s\u00e1t h\u00e0nh lang", "--", "(n - 2m)", new Color(234, 88, 12));
+        JPanel card1 = UIHelper.createStatCard("user.png", "T\u1ed5ng c\u00e1n b\u1ed9 ch\u1ecdn (n)", "--", "", UIHelper.PRIMARY);
+        JPanel card2 = UIHelper.createStatCard("building.jpg", "S\u1ed1 ph\u00f2ng thi (m)", "--", "", UIHelper.ACCENT);
+        JPanel card3 = UIHelper.createStatCard("teacher.png", "C\u00e1n b\u1ed9 coi thi", "--", "", UIHelper.PURPLE);
+        JPanel card4 = UIHelper.createStatCard("security.jpg", "Gi\u00e1m s\u00e1t h\u00e0nh lang", "--", "", UIHelper.WARNING);
 
         // Get value labels (3rd component in each card's BoxLayout)
         statNValue = (JLabel) card1.getComponent(5);
@@ -276,7 +276,7 @@ public class MainFrame extends JFrame {
         exportPanel.setOpaque(false);
         exportPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-        exportPhanCongBtn = UIHelper.createButton("Xu\u1ea5t DS Gi\u00e1m th\u1ecb (Coi thi)", new Color(220, 38, 38));
+        exportPhanCongBtn = UIHelper.createOutlinedButton("Xu\u1ea5t DS Gi\u00e1m th\u1ecb (Coi thi)", UIHelper.PRIMARY);
         exportPhanCongBtn.setPreferredSize(new Dimension(0, 38));
         exportPhanCongBtn.setEnabled(false);
         exportPhanCongBtn.addActionListener(e -> doExportPhanCong());
@@ -383,8 +383,8 @@ public class MainFrame extends JFrame {
                 }
 
                 // Chi cap nhat label toi da, KHONG ghi de n va m neu nguoi dung da nhap
-                nMaxLabel.setText("(file co: " + canBoList.size() + " can bo)");
-                mMaxLabel.setText("(file co: " + phongThiList.size() + " phong thi)");
+                nMaxLabel.setText("(" + canBoList.size() + " can bo)");
+                mMaxLabel.setText("(" + phongThiList.size() + " phong thi)");
 
                 showInfo("Da doc file thanh cong!\n" +
                          "- File co: " + canBoList.size() + " can bo, " + phongThiList.size() + " phong thi.\n" +
