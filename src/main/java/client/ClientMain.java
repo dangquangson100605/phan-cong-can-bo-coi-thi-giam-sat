@@ -1,7 +1,7 @@
 package client;
 
 import client.ui.MainFrame;
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
 
@@ -13,7 +13,7 @@ public class ClientMain {
     public static void main(String[] args) {
         // Thiet lap Look and Feel
         try {
-            FlatDarkLaf.setup();
+            FlatLightLaf.setup();
             UIManager.put("Button.arc", 8);
             UIManager.put("Component.arc", 8);
             UIManager.put("TextComponent.arc", 8);

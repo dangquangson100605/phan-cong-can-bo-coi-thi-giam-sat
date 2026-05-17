@@ -1,62 +1,151 @@
 package client.ui;
 
 import javax.swing.*;
-import javax.swing.border.Border;
+import javax.swing.border.*;
 import java.awt.*;
 
 /**
- * Utilities cho giao dien Swing - colors, fonts, borders.
+ * Utilities cho giao dien Swing - Light theme, modern desktop style.
  */
 public class UIHelper {
 
     // === COLOR PALETTE ===
-    public static final Color PRIMARY = new Color(41, 98, 255);
-    public static final Color PRIMARY_DARK = new Color(24, 71, 199);
-    public static final Color PRIMARY_LIGHT = new Color(100, 149, 255);
-    public static final Color ACCENT = new Color(0, 200, 150);
-    public static final Color BG_DARK = new Color(30, 33, 40);
-    public static final Color BG_PANEL = new Color(40, 44, 55);
-    public static final Color BG_CARD = new Color(50, 55, 68);
-    public static final Color BG_INPUT = new Color(60, 65, 80);
-    public static final Color TEXT_PRIMARY = new Color(240, 240, 245);
-    public static final Color TEXT_SECONDARY = new Color(160, 165, 180);
-    public static final Color SUCCESS = new Color(76, 175, 80);
-    public static final Color WARNING = new Color(255, 167, 38);
-    public static final Color ERROR = new Color(244, 67, 54);
-    public static final Color BORDER_COLOR = new Color(70, 75, 90);
+    public static final Color PRIMARY = new Color(37, 99, 235);        // #2563EB
+    public static final Color PRIMARY_DARK = new Color(29, 78, 216);
+    public static final Color PRIMARY_LIGHT = new Color(219, 234, 254);
+    public static final Color ACCENT = new Color(16, 185, 129);        // #10B981
+
+    public static final Color BG_APP = new Color(245, 247, 251);       // #F5F7FB
+    public static final Color BG_PANEL = new Color(255, 255, 255);
+    public static final Color BG_CARD = new Color(255, 255, 255);
+    public static final Color BG_INPUT = new Color(255, 255, 255);
+
+    public static final Color HEADER_BG = new Color(255, 255, 255);
+    public static final Color STATUSBAR_BG = new Color(255, 255, 255);
+
+    public static final Color TEXT_PRIMARY = new Color(31, 41, 55);    // #1F2937
+    public static final Color TEXT_SECONDARY = new Color(107, 114, 128);// #6B7280
+
+    public static final Color SUCCESS = new Color(16, 185, 129);       // #10B981
+    public static final Color WARNING = new Color(245, 158, 11);       // #F59E0B
+    public static final Color ERROR = new Color(239, 68, 68);          // #EF4444
+    public static final Color BORDER_COLOR = new Color(229, 231, 235); // #E5E7EB
+
+    // Backward compat aliases
+    public static final Color BG_DARK = BG_APP;
 
     // === FONTS ===
     public static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 20);
+    public static final Font FONT_SECTION = new Font("Segoe UI", Font.BOLD, 15);
     public static final Font FONT_SUBTITLE = new Font("Segoe UI", Font.BOLD, 14);
     public static final Font FONT_BODY = new Font("Segoe UI", Font.PLAIN, 13);
     public static final Font FONT_SMALL = new Font("Segoe UI", Font.PLAIN, 11);
     public static final Font FONT_BUTTON = new Font("Segoe UI", Font.BOLD, 13);
+    public static final Font FONT_STAT_VALUE = new Font("Segoe UI", Font.BOLD, 26);
+    public static final Font FONT_STAT_LABEL = new Font("Segoe UI", Font.PLAIN, 11);
 
     /**
-     * Tao JButton dep
+     * Tao JButton hien dai voi disabled state
      */
     public static JButton createButton(String text, Color bgColor) {
-        JButton btn = new JButton(text);
+        JButton btn = new JButton(text) {
+            @Override
+            public void setEnabled(boolean b) {
+                super.setEnabled(b);
+                setForeground(b ? Color.WHITE : new Color(156, 163, 175));
+                setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (isEnabled()) {
+                    g2.setColor(getBackground());
+                } else {
+                    g2.setColor(Color.WHITE); // White background when disabled
+                }
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setContentAreaFilled(false);
         btn.setFont(FONT_BUTTON);
         btn.setForeground(Color.WHITE);
         btn.setBackground(bgColor);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
-        btn.setOpaque(true);
+        btn.setOpaque(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setPreferredSize(new Dimension(180, 38));
+        btn.setPreferredSize(new Dimension(180, 36));
 
-        // Hover effect
         Color hoverColor = bgColor.brighter();
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                btn.setBackground(hoverColor);
+                if (btn.isEnabled()) btn.setBackground(hoverColor);
             }
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                btn.setBackground(bgColor);
+                if (btn.isEnabled()) btn.setBackground(bgColor);
             }
         });
 
+        return btn;
+    }
+
+    /**
+     * Tao outlined button
+     */
+    public static JButton createOutlinedButton(String text, Color color) {
+        JButton btn = new JButton(text) {
+            @Override
+            public void setEnabled(boolean b) {
+                super.setEnabled(b);
+                setForeground(b ? color : new Color(156, 163, 175));
+                if (b) {
+                    setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(color, 1),
+                            BorderFactory.createEmptyBorder(6, 16, 6, 16)
+                    ));
+                } else {
+                    setBorder(BorderFactory.createEmptyBorder(7, 17, 7, 17));
+                }
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (isEnabled()) {
+                    g2.setColor(getBackground());
+                } else {
+                    g2.setColor(Color.WHITE); // White background when disabled
+                }
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setContentAreaFilled(false);
+        btn.setFont(FONT_BUTTON);
+        btn.setForeground(color);
+        btn.setBackground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setOpaque(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, 1),
+                BorderFactory.createEmptyBorder(6, 16, 6, 16)
+        ));
+        btn.setPreferredSize(new Dimension(180, 36));
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                if (btn.isEnabled()) btn.setBackground(new Color(245, 247, 251));
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                if (btn.isEnabled()) btn.setBackground(Color.WHITE);
+            }
+        });
         return btn;
     }
 
@@ -71,7 +160,7 @@ public class UIHelper {
     }
 
     /**
-     * Tao JTextField dep
+     * Tao JTextField hien dai
      */
     public static JTextField createTextField(int columns) {
         JTextField tf = new JTextField(columns);
@@ -81,57 +170,61 @@ public class UIHelper {
         tf.setCaretColor(TEXT_PRIMARY);
         tf.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR, 1),
-                BorderFactory.createEmptyBorder(5, 10, 5, 10)
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)
         ));
         return tf;
     }
 
     /**
-     * Tao panel voi border va tieu de
+     * Tao section panel voi icon va tieu de
      */
-    public static JPanel createTitledPanel(String title) {
-        JPanel panel = new JPanel();
+    public static JPanel createSectionPanel(String icon, String title) {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setBackground(BG_PANEL);
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR, 1),
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder(
-                                BorderFactory.createEmptyBorder(),
-                                title,
-                                javax.swing.border.TitledBorder.LEFT,
-                                javax.swing.border.TitledBorder.TOP,
-                                FONT_SUBTITLE,
-                                PRIMARY_LIGHT
-                        ),
-                        BorderFactory.createEmptyBorder(5, 10, 10, 10)
-                )
+                BorderFactory.createEmptyBorder(15, 18, 15, 18)
         ));
+        JPanel headerRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        headerRow.setOpaque(false);
+        if (icon != null && !icon.isEmpty()) {
+            headerRow.add(createLabel(icon, FONT_SECTION, PRIMARY));
+        }
+        headerRow.add(createLabel(title, FONT_SECTION, PRIMARY));
+        panel.add(headerRow, BorderLayout.NORTH);
         return panel;
     }
 
     /**
-     * Style cho JTable
+     * Backward compat
+     */
+    public static JPanel createTitledPanel(String title) {
+        return createSectionPanel(null, title);
+    }
+
+    /**
+     * Style cho JTable - light theme
      */
     public static void styleTable(JTable table) {
         table.setFont(FONT_BODY);
-        table.setRowHeight(28);
+        table.setRowHeight(32);
         table.setBackground(BG_CARD);
         table.setForeground(TEXT_PRIMARY);
-        table.setSelectionBackground(PRIMARY);
-        table.setSelectionForeground(Color.WHITE);
+        table.setSelectionBackground(new Color(239, 246, 255));
+        table.setSelectionForeground(TEXT_PRIMARY);
         table.setGridColor(BORDER_COLOR);
         table.setShowGrid(true);
         table.setIntercellSpacing(new Dimension(1, 1));
 
-        // Header style
         table.getTableHeader().setFont(FONT_SUBTITLE);
-        table.getTableHeader().setBackground(BG_DARK);
-        table.getTableHeader().setForeground(PRIMARY_LIGHT);
-        table.getTableHeader().setPreferredSize(new Dimension(0, 35));
+        table.getTableHeader().setBackground(new Color(249, 250, 251));
+        table.getTableHeader().setForeground(TEXT_PRIMARY);
+        table.getTableHeader().setPreferredSize(new Dimension(0, 36));
+        table.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
     }
 
     /**
-     * Style cho JScrollPane
+     * Tao JScrollPane cho table
      */
     public static JScrollPane createScrollPane(JTable table) {
         JScrollPane sp = new JScrollPane(table);
@@ -139,5 +232,50 @@ public class UIHelper {
         sp.getViewport().setBackground(BG_CARD);
         sp.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
         return sp;
+    }
+
+    /**
+     * Tao stat card cho panel ket qua
+     */
+    public static JPanel createStatCard(String icon, String label, String value, String sub, Color iconColor) {
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                BorderFactory.createEmptyBorder(12, 10, 12, 10)
+        ));
+
+        JLabel iconLbl = new JLabel(icon, SwingConstants.CENTER);
+        iconLbl.setFont(new Font("Segoe UI", Font.PLAIN, 28));
+        iconLbl.setForeground(iconColor);
+        iconLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel labelLbl = new JLabel(label, SwingConstants.CENTER);
+        labelLbl.setFont(FONT_STAT_LABEL);
+        labelLbl.setForeground(TEXT_SECONDARY);
+        labelLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel valueLbl = new JLabel(value, SwingConstants.CENTER);
+        valueLbl.setFont(FONT_STAT_VALUE);
+        valueLbl.setForeground(iconColor);
+        valueLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subLbl = new JLabel(sub, SwingConstants.CENTER);
+        subLbl.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        subLbl.setForeground(TEXT_SECONDARY);
+        subLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        card.add(Box.createVerticalGlue());
+        card.add(iconLbl);
+        card.add(Box.createVerticalStrut(2));
+        card.add(labelLbl);
+        card.add(Box.createVerticalStrut(4));
+        card.add(valueLbl);
+        card.add(Box.createVerticalStrut(2));
+        card.add(subLbl);
+        card.add(Box.createVerticalGlue());
+
+        return card;
     }
 }

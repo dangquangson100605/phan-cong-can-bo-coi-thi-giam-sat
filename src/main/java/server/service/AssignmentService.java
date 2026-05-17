@@ -29,10 +29,11 @@ public class AssignmentService {
         int n = canBoList.size();
         int m = phongThiList.size();
 
-        // Kiem tra dieu kien du lieu
-        if (n < 2 * m) {
-            throw new Exception("Khong du can bo coi thi! Can it nhat " + (2 * m) +
-                    " can bo cho " + m + " phong thi, hien chi co " + n + " can bo. Vui long nhap lai du lieu.");
+        // Kiem tra dieu kien du lieu: 2*m < n <= 3*m
+        if (n <= 2 * m || n > 3 * m) {
+            throw new Exception("Dieu kien khong hop le! Yeu cau 2*m < n <= 3*m. " +
+                    "Voi m = " + m + " phong thi, can " + (2 * m) + " < n <= " + (3 * m) +
+                    ", hien co n = " + n + ". Vui long nhap lai du lieu.");
         }
 
         // Luu can bo va phong thi vao DB, lay lai danh sach voi id thuc te tu DB
@@ -141,7 +142,9 @@ public class AssignmentService {
         List<CanBo> giamSatCanBo = new ArrayList<>();
         for (CanBo cb : available) {
             if (!assigned.contains(cb.getId())) {
-                giamSatCanBo.add(cb);
+                if (giamSatCanBo.size() < m) {
+                    giamSatCanBo.add(cb);
+                }
             }
         }
 

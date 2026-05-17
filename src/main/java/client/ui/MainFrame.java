@@ -21,14 +21,18 @@ public class MainFrame extends JFrame {
 
     private final ClientConnection connection;
     private JTextField hostField, portField;
-    private JTextField nField, mField; // n = so can bo, m = so phong thi (nhap tay)
-    private JLabel nMaxLabel, mMaxLabel; // Hien thi so toi da tu file Excel
+    private JTextField nField, mField;
+    private JLabel nMaxLabel, mMaxLabel;
     private JButton connectBtn, disconnectBtn;
     private JLabel statusLabel;
     private JLabel fileLabel;
     private JButton chooseFileBtn, sendBtn, exportPhanCongBtn, exportGiamSatBtn;
     private JTable canBoTable, phongThiTable, phanCongTable, giamSatTable;
     private JTabbedPane inputTabs, resultTabs;
+
+    // Stat card value labels
+    private JLabel statNValue, statMValue, statCoiThiValue, statGiamSatValue;
+    private int lastN = 0, lastM = 0;
 
     private String selectedFilePath = null;
     private List<CanBo> canBoList = null;
@@ -41,12 +45,12 @@ public class MainFrame extends JFrame {
     }
 
     private void initUI() {
-        setTitle("HE THONG PHAN CONG CAN BO COI THI");
+        setTitle("H\u1ec6 TH\u1ed0NG PH\u00c2N C\u00d4NG C\u00c1N B\u1ed8 COI THI");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 800);
-        setMinimumSize(new Dimension(900, 600));
+        setMinimumSize(new Dimension(1000, 650));
         setLocationRelativeTo(null);
-        getContentPane().setBackground(UIHelper.BG_DARK);
+        getContentPane().setBackground(UIHelper.BG_APP);
         setLayout(new BorderLayout(0, 0));
 
         // Header
@@ -62,36 +66,42 @@ public class MainFrame extends JFrame {
     // === HEADER ===
     private JPanel createHeaderPanel() {
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(new Color(25, 28, 35));
-        header.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        header.setBackground(UIHelper.HEADER_BG);
+        header.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, UIHelper.BORDER_COLOR),
+                BorderFactory.createEmptyBorder(14, 25, 14, 25)
+        ));
 
-        // Title
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1, 0, 3));
+        titlePanel.setOpaque(false);
         JLabel title = UIHelper.createLabel(
-                "\u2605  HE THONG PHAN CONG CAN BO COI THI",
-                UIHelper.FONT_TITLE, UIHelper.PRIMARY_LIGHT);
-        header.add(title, BorderLayout.WEST);
+                "H\u1ec6 TH\u1ed0NG PH\u00c2N C\u00d4NG C\u00c1N B\u1ed8 COI THI",
+                UIHelper.FONT_TITLE, UIHelper.PRIMARY_DARK);
+        JLabel subtitle = UIHelper.createLabel(
+                "T\u1ef1 \u0111\u1ed9ng ph\u00e2n c\u00f4ng gi\u00e1m th\u1ecb, gi\u00e1m s\u00e1t v\u00e0 xu\u1ea5t danh s\u00e1ch Excel",
+                UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
+        titlePanel.add(title);
+        titlePanel.add(subtitle);
+        header.add(titlePanel, BorderLayout.WEST);
 
-        // Connection panel
-        JPanel connPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel connPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
         connPanel.setOpaque(false);
-
-        connPanel.add(UIHelper.createLabel("Host:", UIHelper.FONT_BODY, UIHelper.TEXT_SECONDARY));
+        connPanel.add(UIHelper.createLabel("Host:", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
         hostField = UIHelper.createTextField(10);
         hostField.setText("localhost");
         connPanel.add(hostField);
-
-        connPanel.add(UIHelper.createLabel("Port:", UIHelper.FONT_BODY, UIHelper.TEXT_SECONDARY));
+        connPanel.add(UIHelper.createLabel("Port:", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
         portField = UIHelper.createTextField(5);
         portField.setText("9999");
         connPanel.add(portField);
 
-        connectBtn = UIHelper.createButton("Ket noi", UIHelper.SUCCESS);
+        connectBtn = UIHelper.createButton("K\u1ebft n\u1ed1i", UIHelper.PRIMARY);
         connectBtn.setPreferredSize(new Dimension(110, 34));
         connectBtn.addActionListener(e -> doConnect());
         connPanel.add(connectBtn);
 
-        disconnectBtn = UIHelper.createButton("Ngat", UIHelper.ERROR);
-        disconnectBtn.setPreferredSize(new Dimension(80, 34));
+        disconnectBtn = UIHelper.createButton("Ng\u1eaft", UIHelper.ERROR);
+        disconnectBtn.setPreferredSize(new Dimension(85, 34));
         disconnectBtn.setEnabled(false);
         disconnectBtn.addActionListener(e -> doDisconnect());
         connPanel.add(disconnectBtn);
@@ -102,9 +112,9 @@ public class MainFrame extends JFrame {
 
     // === MAIN PANEL ===
     private JPanel createMainPanel() {
-        JPanel main = new JPanel(new BorderLayout(10, 10));
-        main.setBackground(UIHelper.BG_DARK);
-        main.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        JPanel main = new JPanel(new BorderLayout(12, 12));
+        main.setBackground(UIHelper.BG_APP);
+        main.setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 18));
 
         // Left: Input section
         JPanel leftPanel = createInputSection();
@@ -117,7 +127,7 @@ public class MainFrame extends JFrame {
         splitPane.setDividerLocation(500);
         splitPane.setDividerSize(6);
         splitPane.setBorder(null);
-        splitPane.setBackground(UIHelper.BG_DARK);
+        splitPane.setBackground(UIHelper.BG_APP);
 
         main.add(splitPane, BorderLayout.CENTER);
         return main;
@@ -125,8 +135,11 @@ public class MainFrame extends JFrame {
 
     // === INPUT SECTION ===
     private JPanel createInputSection() {
-        JPanel panel = UIHelper.createTitledPanel("DU LIEU DAU VAO");
-        panel.setLayout(new BorderLayout(0, 10));
+        JPanel panel = UIHelper.createSectionPanel(null, "D\u1eee LI\u1ec6U \u0110\u1ea6U V\u00c0O");
+        // Override layout since createSectionPanel uses BorderLayout with header at NORTH
+        // We need to add our content to CENTER and SOUTH
+        JPanel content = new JPanel(new BorderLayout(0, 10));
+        content.setOpaque(false);
 
         // Top area: file chooser + m/n input
         JPanel topPanel = new JPanel();
@@ -134,47 +147,46 @@ public class MainFrame extends JFrame {
         topPanel.setOpaque(false);
 
         // File chooser area
-        JPanel filePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JPanel filePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         filePanel.setOpaque(false);
-
-        chooseFileBtn = UIHelper.createButton("[+] Chon file Excel", UIHelper.PRIMARY);
+        chooseFileBtn = UIHelper.createButton("Ch\u1ecdn file Excel", UIHelper.PRIMARY);
+        chooseFileBtn.setPreferredSize(new Dimension(160, 34));
         chooseFileBtn.addActionListener(e -> doChooseFile());
         filePanel.add(chooseFileBtn);
-
-        fileLabel = UIHelper.createLabel("Chua chon file", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
+        fileLabel = UIHelper.createLabel("Ch\u01b0a ch\u1ecdn file", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         filePanel.add(fileLabel);
-
         topPanel.add(filePanel);
 
-        // m, n input area
-        JPanel mnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        // n, m input area
+        JPanel mnPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         mnPanel.setOpaque(false);
-
-        mnPanel.add(UIHelper.createLabel("n (So can bo):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
-        nField = UIHelper.createTextField(6);
-        nField.setToolTipText("Nhap so luong can bo coi thi (n)");
+        mnPanel.add(UIHelper.createLabel("n (S\u1ed1 c\u00e1n b\u1ed9):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
+        nField = UIHelper.createTextField(5);
         mnPanel.add(nField);
         nMaxLabel = UIHelper.createLabel("", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         mnPanel.add(nMaxLabel);
-
-        mnPanel.add(Box.createHorizontalStrut(15));
-
-        mnPanel.add(UIHelper.createLabel("m (So phong thi):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
-        mField = UIHelper.createTextField(6);
-        mField.setToolTipText("Nhap so luong phong thi (m)");
+        mnPanel.add(Box.createHorizontalStrut(10));
+        mnPanel.add(UIHelper.createLabel("m (S\u1ed1 ph\u00f2ng thi):", UIHelper.FONT_BODY, UIHelper.TEXT_PRIMARY));
+        mField = UIHelper.createTextField(5);
         mnPanel.add(mField);
         mMaxLabel = UIHelper.createLabel("", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         mnPanel.add(mMaxLabel);
-
         topPanel.add(mnPanel);
 
-        // Dieu kien label
-        JPanel condPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
-        condPanel.setOpaque(false);
-        condPanel.add(UIHelper.createLabel("\u26A0 Dieu kien: n \u2265 2m (so can bo phai gap doi so phong thi)", UIHelper.FONT_SMALL, UIHelper.WARNING));
+        // Condition label with background
+        JPanel condPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        condPanel.setBackground(new Color(255, 251, 235));
+        condPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(253, 230, 138), 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
+        JLabel condLabel = UIHelper.createLabel(
+                "\u0110i\u1ec1u ki\u1ec7n: 2m < n <= 3m. Gi\u00e1m s\u00e1t = n - 2m.",
+                UIHelper.FONT_SMALL, new Color(146, 64, 14));
+        condPanel.add(condLabel);
         topPanel.add(condPanel);
 
-        panel.add(topPanel, BorderLayout.NORTH);
+        content.add(topPanel, BorderLayout.NORTH);
 
         // Input data preview tabs
         inputTabs = new JTabbedPane();
@@ -182,87 +194,118 @@ public class MainFrame extends JFrame {
         inputTabs.setBackground(UIHelper.BG_PANEL);
         inputTabs.setForeground(UIHelper.TEXT_PRIMARY);
 
-        // Can bo table
         canBoTable = new JTable(new DefaultTableModel(
-                new String[]{"ID", "Ma GV", "Ho Ten", "Ngay Sinh", "Don Vi"}, 0));
+                new String[]{"ID", "M\u00e3 GV", "H\u1ecd t\u00ean", "Ng\u00e0y sinh", "\u0110\u01a1n v\u1ecb"}, 0));
         UIHelper.styleTable(canBoTable);
-        inputTabs.addTab("Danh sach Can bo", UIHelper.createScrollPane(canBoTable));
+        inputTabs.addTab("Danh s\u00e1ch c\u00e1n b\u1ed9", UIHelper.createScrollPane(canBoTable));
 
-        // Phong thi table
         phongThiTable = new JTable(new DefaultTableModel(
-                new String[]{"STT", "Phong Thi", "Ghi Chu"}, 0));
+                new String[]{"STT", "Ph\u00f2ng thi", "Ghi ch\u00fa"}, 0));
         UIHelper.styleTable(phongThiTable);
-        inputTabs.addTab("Danh sach Phong thi", UIHelper.createScrollPane(phongThiTable));
+        inputTabs.addTab("Danh s\u00e1ch ph\u00f2ng thi", UIHelper.createScrollPane(phongThiTable));
 
-        panel.add(inputTabs, BorderLayout.CENTER);
+        content.add(inputTabs, BorderLayout.CENTER);
 
-        // Send button
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        // Send button - full width
+        JPanel btnPanel = new JPanel(new BorderLayout(0, 0));
         btnPanel.setOpaque(false);
-
-        sendBtn = UIHelper.createButton(">>> GUI PHAN CONG", UIHelper.ACCENT);
-        sendBtn.setPreferredSize(new Dimension(220, 42));
+        btnPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        sendBtn = UIHelper.createButton("G\u1eecI PH\u00c2N C\u00d4NG", UIHelper.SUCCESS);
+        sendBtn.setPreferredSize(new Dimension(0, 44));
         sendBtn.setEnabled(false);
         sendBtn.addActionListener(e -> doSendAssignment());
-        btnPanel.add(sendBtn);
+        btnPanel.add(sendBtn, BorderLayout.CENTER);
+        content.add(btnPanel, BorderLayout.SOUTH);
 
-        panel.add(btnPanel, BorderLayout.SOUTH);
+        panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
     // === RESULT SECTION ===
     private JPanel createResultSection() {
-        JPanel panel = UIHelper.createTitledPanel("KET QUA PHAN CONG");
-        panel.setLayout(new BorderLayout(0, 10));
+        JPanel panel = UIHelper.createSectionPanel(null, "K\u1ebeT QU\u1ea2 PH\u00c2N C\u00d4NG");
+        JPanel content = new JPanel(new BorderLayout(0, 8));
+        content.setOpaque(false);
 
-        // Result tabs
         resultTabs = new JTabbedPane();
         resultTabs.setFont(UIHelper.FONT_BODY);
         resultTabs.setBackground(UIHelper.BG_PANEL);
         resultTabs.setForeground(UIHelper.TEXT_PRIMARY);
 
-        // Phan cong table
         phanCongTable = new JTable(new DefaultTableModel(
-                new String[]{"STT", "Phong Thi", "Dia diem", "Ma GT1", "Ho ten GT1", "Ma GT2", "Ho ten GT2"}, 0));
+                new String[]{"STT", "Ph\u00f2ng thi", "\u0110\u1ecba \u0111i\u1ec3m", "M\u00e3 GT1", "H\u1ecd t\u00ean GT1", "M\u00e3 GT2", "H\u1ecd t\u00ean GT2"}, 0));
         UIHelper.styleTable(phanCongTable);
-        resultTabs.addTab("Giam thi", UIHelper.createScrollPane(phanCongTable));
+        resultTabs.addTab("Gi\u00e1m th\u1ecb (Coi thi)", UIHelper.createScrollPane(phanCongTable));
 
-        // Giam sat table
         giamSatTable = new JTable(new DefaultTableModel(
-                new String[]{"STT", "Ma GV", "Ho ten", "Don vi", "Tu phong", "Den phong"}, 0));
+                new String[]{"STT", "M\u00e3 GV", "H\u1ecd t\u00ean", "\u0110\u01a1n v\u1ecb", "T\u1eeb ph\u00f2ng", "\u0110\u1ebfn ph\u00f2ng"}, 0));
         UIHelper.styleTable(giamSatTable);
-        resultTabs.addTab("Giam sat Hanh lang", UIHelper.createScrollPane(giamSatTable));
+        resultTabs.addTab("Gi\u00e1m s\u00e1t h\u00e0nh lang", UIHelper.createScrollPane(giamSatTable));
 
-        panel.add(resultTabs, BorderLayout.CENTER);
+        content.add(resultTabs, BorderLayout.CENTER);
+
+        // Bottom: stats + export
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
+        bottomPanel.setOpaque(false);
+
+        // Stat cards row
+        JPanel statPanel = new JPanel(new GridLayout(1, 4, 8, 0));
+        statPanel.setOpaque(false);
+        statPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 0));
+
+        JPanel card1 = UIHelper.createStatCard("", "T\u1ed5ng c\u00e1n b\u1ed9 ch\u1ecdn (n)", "--", "", UIHelper.PRIMARY);
+        JPanel card2 = UIHelper.createStatCard("", "S\u1ed1 ph\u00f2ng thi (m)", "--", "", UIHelper.PRIMARY);
+        JPanel card3 = UIHelper.createStatCard("", "C\u00e1n b\u1ed9 coi thi", "--", "(2m)", new Color(234, 88, 12));
+        JPanel card4 = UIHelper.createStatCard("", "Gi\u00e1m s\u00e1t h\u00e0nh lang", "--", "(n - 2m)", new Color(234, 88, 12));
+
+        // Get value labels (3rd component in each card's BoxLayout)
+        statNValue = (JLabel) card1.getComponent(5);
+        statMValue = (JLabel) card2.getComponent(5);
+        statCoiThiValue = (JLabel) card3.getComponent(5);
+        statGiamSatValue = (JLabel) card4.getComponent(5);
+
+        statPanel.add(card1);
+        statPanel.add(card2);
+        statPanel.add(card3);
+        statPanel.add(card4);
+        bottomPanel.add(statPanel);
 
         // Export buttons
-        JPanel exportPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        JPanel exportPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         exportPanel.setOpaque(false);
+        exportPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-        exportPhanCongBtn = UIHelper.createButton("[v] Xuat DS Coi thi", UIHelper.PRIMARY);
+        exportPhanCongBtn = UIHelper.createButton("Xu\u1ea5t DS Gi\u00e1m th\u1ecb (Coi thi)", new Color(220, 38, 38));
+        exportPhanCongBtn.setPreferredSize(new Dimension(0, 38));
         exportPhanCongBtn.setEnabled(false);
         exportPhanCongBtn.addActionListener(e -> doExportPhanCong());
         exportPanel.add(exportPhanCongBtn);
 
-        exportGiamSatBtn = UIHelper.createButton("[v] Xuat DS Giam sat", UIHelper.PRIMARY);
+        exportGiamSatBtn = UIHelper.createOutlinedButton("Xu\u1ea5t DS Gi\u00e1m s\u00e1t h\u00e0nh lang", UIHelper.PRIMARY);
+        exportGiamSatBtn.setPreferredSize(new Dimension(0, 38));
         exportGiamSatBtn.setEnabled(false);
         exportGiamSatBtn.addActionListener(e -> doExportGiamSat());
         exportPanel.add(exportGiamSatBtn);
 
-        panel.add(exportPanel, BorderLayout.SOUTH);
+        bottomPanel.add(exportPanel);
+        content.add(bottomPanel, BorderLayout.SOUTH);
+
+        panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
     // === STATUS BAR ===
     private JPanel createStatusBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBackground(new Color(25, 28, 35));
-        bar.setBorder(BorderFactory.createEmptyBorder(6, 15, 6, 15));
+        bar.setBackground(UIHelper.STATUSBAR_BG);
+        bar.setBorder(BorderFactory.createEmptyBorder(6, 18, 6, 18));
 
-        statusLabel = UIHelper.createLabel("\u26AA Chua ket noi Server", UIHelper.FONT_SMALL, UIHelper.WARNING);
+        statusLabel = UIHelper.createLabel("Ch\u01b0a k\u1ebft n\u1ed1i Server", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         bar.add(statusLabel, BorderLayout.WEST);
 
-        JLabel version = UIHelper.createLabel("v1.0 - He thong Phan cong Can bo Coi thi", UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
+        JLabel version = UIHelper.createLabel("v1.0 \u2014 H\u1ec7 th\u1ed1ng Ph\u00e2n c\u00f4ng C\u00e1n b\u1ed9 Coi thi",
+                UIHelper.FONT_SMALL, UIHelper.TEXT_SECONDARY);
         bar.add(version, BorderLayout.EAST);
 
         return bar;
@@ -391,14 +434,17 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        // Kiem tra dieu kien n >= 2*m
-        if (n < 2 * m) {
-            showError("Khong du can bo coi thi!\n" +
-                      "Can it nhat " + (2 * m) + " can bo cho " + m + " phong thi (n >= 2m),\n" +
-                      "nhung hien chi co n = " + n + " can bo.\n\n" +
-                      "Vui long nhap lai n va m!");
+        // Kiem tra dieu kien 2*m < n <= 3*m
+        if (n <= 2 * m || n > 3 * m) {
+            showError("\u0110i\u1ec1u ki\u1ec7n kh\u00f4ng h\u1ee3p l\u1ec7!\n" +
+                      "Y\u00eau c\u1ea7u: 2m < n <= 3m\n" +
+                      "V\u1edbi m = " + m + ": c\u1ea7n " + (2*m) + " < n <= " + (3*m) + "\n" +
+                      "Hi\u1ec7n t\u1ea1i n = " + n);
             return;
         }
+
+        int soCoiThi = 2 * m;
+        int soGiamSat = n - soCoiThi;
 
         // Lay ngau nhien n can bo tu danh sach (cong bang, khong luon lay nhom dau)
         List<CanBo> shuffledCanBo = new java.util.ArrayList<>(canBoList);
@@ -408,8 +454,11 @@ public class MainFrame extends JFrame {
         // Lay m phong thi dau tien (phong thi theo thu tu vi tri)
         List<PhongThi> selectedPhongThi = new java.util.ArrayList<>(phongThiList.subList(0, m));
 
+        lastN = n;
+        lastM = m;
+
         sendBtn.setEnabled(false);
-        sendBtn.setText("Dang xu ly...");
+        sendBtn.setText("\u0110ang x\u1eed l\u00fd...");
 
         // Chay tren background thread
         new Thread(() -> {
@@ -422,21 +471,21 @@ public class MainFrame extends JFrame {
                     if (response.getType() == MessageType.ASSIGNMENT_RESULT) {
                         lastResult = (ResultData) response.getData();
                         displayResult(lastResult);
-                        showInfo("Phan cong thanh cong! Dot " + lastResult.getDotId() +
-                                 "\n- So can bo (n): " + n +
-                                 "\n- So phong thi (m): " + m +
-                                 "\n- Giam thi: " + (2 * m) + " nguoi" +
-                                 "\n- Giam sat hanh lang: " + (n - 2 * m) + " nguoi");
+                        showInfo("Ph\u00e2n c\u00f4ng th\u00e0nh c\u00f4ng! \u0110\u1ee3t " + lastResult.getDotId() +
+                                 "\n- S\u1ed1 c\u00e1n b\u1ed9 ch\u1ecdn (n): " + n +
+                                 "\n- S\u1ed1 ph\u00f2ng thi (m): " + m +
+                                 "\n- C\u00e1n b\u1ed9 coi thi: " + soCoiThi + " ng\u01b0\u1eddi" +
+                                 "\n- Gi\u00e1m s\u00e1t h\u00e0nh lang: " + soGiamSat + " ng\u01b0\u1eddi");
                     } else {
                         showError("Loi tu Server:\n" + response.getData());
                     }
-                    sendBtn.setText(">>> GUI PHAN CONG");
+                    sendBtn.setText("G\u1eecI PH\u00c2N C\u00d4NG");
                     updateSendButton();
                 });
             } catch (Exception e) {
                 SwingUtilities.invokeLater(() -> {
                     showError("Loi gui du lieu:\n" + e.getMessage());
-                    sendBtn.setText(">>> GUI PHAN CONG");
+                    sendBtn.setText("G\u1eecI PH\u00c2N C\u00d4NG");
                     updateSendButton();
                 });
             }
@@ -477,6 +526,14 @@ public class MainFrame extends JFrame {
 
         exportPhanCongBtn.setEnabled(true);
         exportGiamSatBtn.setEnabled(true);
+
+        // Update stat cards
+        int soCoiThi = 2 * lastM;
+        int soGiamSat = lastN - soCoiThi;
+        statNValue.setText(String.valueOf(lastN));
+        statMValue.setText(String.valueOf(lastM));
+        statCoiThiValue.setText(String.valueOf(soCoiThi));
+        statGiamSatValue.setText(String.valueOf(soGiamSat));
 
         // Chuyen sang tab ket qua
         resultTabs.setSelectedIndex(0);
