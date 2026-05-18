@@ -7,6 +7,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -102,7 +105,7 @@ public class ExcelReader {
             case NUMERIC:
                 double val = cell.getNumericCellValue();
                 if (val == Math.floor(val)) {
-                    return String.valueOf((int) val);
+                    return BigDecimal.valueOf(val).toPlainString();
                 }
                 return String.valueOf(val);
             case BOOLEAN:
@@ -133,6 +136,19 @@ public class ExcelReader {
         try {
             if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
                 return cell.getDateCellValue();
+            } else if (cell.getCellType() == CellType.STRING) {
+                String strDate = cell.getStringCellValue().trim();
+                if (!strDate.isEmpty()) {
+                    try {
+                        return new SimpleDateFormat("dd/MM/yyyy").parse(strDate);
+                    } catch (ParseException pe) {
+                        try {
+                            return new SimpleDateFormat("dd-MM-yyyy").parse(strDate);
+                        } catch (ParseException pe2) {
+                            // Ignore if cannot parse
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             // Ignore
